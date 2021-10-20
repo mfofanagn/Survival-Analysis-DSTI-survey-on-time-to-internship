@@ -1,0 +1,290 @@
+---
+title: "Survival analysis"
+author: "mamadi.fofana"
+date: "3/11/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+```{r}
+
+library(tidyverse)
+library(sys)
+library(survival)
+
+library(summarytools)
+library(readr) 
+#library(explore)
+
+library(lubridate)
+library(broom)
+
+```
+
+```{r}
+setwd("D:/DSTI/19 - Survival Analysis/2021/")
+getwd()
+
+#
+#train = pd.read_csv("train.csv")
+#test = pd.read_csv("test.csv")
+
+dsti_sample = read.csv("DSTI_survey.csv")
+#str(dsti_sample)
+head(dsti_sample, 100)
+```
+
+#Data Preprocessing
+# data wrangling
+# Manage missing value
+# Calculate new field
+# Remove useless field
+```{r}
+#dsti_sample = dsti_sample %>% select(Timestamp, Year.of.birth, When.did.you.start.looking.for.an.internship, Sex, #When.did.you.stopped.looking.for.an.internship, Have.you.found.an.internship., Education..background..pick.a.main.one.you.identify.with.,
+#Years.of.education,Do.you.have.children.,Cohort)
+```
+
+
+```{r}
+str(dsti_sample)
+```
+
+
+```{r}
+table(dsti_sample$Education..background..pick.a.main.one.you.identify.with.)
+```
+
+
+```{r}
+# shorter labels for education
+edu_labels <- tibble(
+  `Education..background..pick.a.main.one.you.identify.with.` =
+    c("Business, Management", "Finance, Economy",
+      "Literature, History, Philosophy", 
+      "Mathematics, Physics, Chemistry, Computer Science, Statistics", 
+      "Medicine, Biology", "Other"),
+  Education = c("mgmt", "fin", "lit", "math", "bio", "oth")
+  )
+
+dsti_sample <- dsti_sample %>%
+  inner_join(edu_labels, by = "Education..background..pick.a.main.one.you.identify.with.") %>%
+  mutate(Education = factor(Education))
+
+table(dsti_sample$education)
+
+str(dsti_sample)
+
+```
+```{r}
+dsti_sample = dsti_sample %>% select(Timestamp, Year.of.birth, When.did.you.start.looking.for.an.internship, Sex, When.did.you.stopped.looking.for.an.internship, Have.you.found.an.internship., Education,
+Years.of.education,Do.you.have.children.,Cohort)
+
+str(dsti_sample)
+```
+
+
+```{r}
+head(dsti_sample, 100)
+```
+
+```{r}
+as_date <- function(x) as.Date(x, format = "%m/%d/%Y")
+
+dsti_sample <-  dsti_sample %>%
+  mutate(Timestamp = as_date(Timestamp),
+         When.did.you.start.looking.for.an.internship = as_date(When.did.you.start.looking.for.an.internship),
+         When.did.you.stopped.looking.for.an.internship = as_date(When.did.you.stopped.looking.for.an.internship),
+         Have.you.found.an.internship. = as.factor(Have.you.found.an.internship.),
+         
+         Sex = as.factor(Sex), Have.you.found.an.internship. = as.factor(Have.you.found.an.internship.),
+         Cohort = as.factor(Cohort), 
+         Do.you.have.children. = as.factor(Do.you.have.children.),
+         Education = as.factor(Education),
+         
+         Age = (year(Timestamp) - Year.of.birth)
+         
+  )
+
+```
+```{r}
+#str(dsti_sample)
+head(dsti_sample, 100)
+```
+```{r}
+# Data Cleansing
+#ddd = dsti_sample
+table(dsti_sample$Have.you.found.an.internship.)
+ddd = dsti_sample
+#dsti_sample = dsti_sample %>% filter(is.na(Have.you.found.an.internship.) | Have.you.found.an.internship.!= "")
+dsti_sample = dsti_sample %>% filter(Have.you.found.an.internship.!= "")
+dsti_sample$Have.you.found.an.internship. = ifelse(dsti_sample$Have.you.found.an.internship.=="Yes",1,0)
+
+str(dsti_sample)
+table(dsti_sample$Have.you.found.an.internship.)
+#head(dsti_sample, 100)
+dim(dsti_sample)
+
+```
+
+
+```{r}
+#row1 = dsti_sample %>% filter(Have.you.found.an.internship. =="No" & When.did.you.start.looking.for.an.internship > Timestamp)
+
+#dsti_sample = dsti_sample[!(dsti_sample$Have.you.found.an.internship.=="No" & #dsti_sample$When.did.you.start.looking.for.an.internship > dsti_sample$Timestamp),]
+
+#dsti_sample = setdiff(dsti_sample, row1 )
+
+#str(dsti_sample)
+
+str(dsti_sample$Have.you.found.an.internship.)
+dsti_sample$Have.you.found.an.internship.
+```
+
+
+```{r}
+head(dsti_sample, 66)
+```
+
+
+```{r}
+#dsti_sample = dsti_sample[!(dsti_sample$Have.you.found.an.internship.=="Yes" & is.na(dsti_sample$When.did.you.start.looking.for.an.internship)),]
+
+#str(dsti_sample)
+head(dsti_sample, 66)
+
+```
+```{r}
+dsti_sample <-  dsti_sample %>%
+  mutate(Waiting_Time = ifelse(!is.na(dsti_sample$When.did.you.stopped.looking.for.an.internship), difftime(When.did.you.stopped.looking.for.an.internship, When.did.you.start.looking.for.an.internship, units = "days"),difftime(dsti_sample$Timestamp, When.did.you.start.looking.for.an.internship, units = "days")  ))
+
+                                     
+str(dsti_sample)
+table(dsti_sample$Waiting_Time)
+
+dsti_sample2= dsti_sample2 %>% filter(dsti_sample$Waiting_Time >=0)
+#
+#ddd = dsti_sample %>% filter(is.na(dsti_sample$Waiting_Time))
+#dim(ddd)
+head(dsti_sample, 100)
+```
+
+
+```{r}
+
+ccc= setdiff(dsti_sample,dsti_sample2)
+str(ccc)
+```
+
+
+```{r}
+
+ccc= setdiff(dsti_sample,ddd)
+
+head(ccc,50)
+```
+
+
+```{r}
+library(summarytools) 
+library(readr) 
+
+#view(dfSummary(dsti_sample) )
+
+```
+```{r}
+#dsti_sample$ttl <- with(dsti_sample, Surv(Waiting_Time, Have.you.found.an.internship.))
+
+dsti_sample$Have.you.found.an.internship. = as.logical(dsti_sample$Have.you.found.an.internship.)
+
+str(dsti_sample)
+table(dsti_sample$Have.you.found.an.internship.)
+```
+
+
+```{r}
+fit <- survfit(Surv(Waiting_Time, Have.you.found.an.internship.) ~ 1, data = dsti_sample)
+
+summary(fit)
+
+#str(dsti_sample)
+```
+```{r}
+plot(fit,
+     xlab = "time(days)",
+     ylab = "Probability to wait", )
+
+
+```
+
+
+```{r}
+fit
+
+#sfit <- survfit(ttl ~ 1, data = dsti_sample)
+#plot(sfit,
+     #xlab = "time(days)",
+     #ylab = "Probability to get internship")
+
+```
+
+
+
+
+
+```{r}
+# Test for Cohort
+
+
+table(dsti_sample$Have.you.found.an.internship., dsti_sample$Cohort )
+
+chisq.test(table(dsti_sample$Cohort, dsti_sample$Have.you.found.an.internship. ))
+
+fisher.test(table(dsti_sample$Cohort, dsti_sample$Have.you.found.an.internship. ))
+
+fisher.test(table(dsti_sample$Cohort, dsti_sample$Waiting_Time ))
+```
+
+
+```{r}
+# Cohort 
+
+#cohort = survdiff(Surv(Waiting_Time, Have.you.found.an.internship.)  ~ Cohort, data = dsti_sample)
+cohort =  survfit(Surv(Waiting_Time, Have.you.found.an.internship.) ~ Cohort, data = dsti_sample)
+
+cohort
+summary(cohort)
+```
+
+
+```{r}
+
+plot(cohort,col = 1:2 )
+```
+```{r}
+
+```
+
+```{r}
+
+# Educational Background 
+
+#cohort = survdiff(Surv(Waiting_Time, Have.you.found.an.internship.)  ~ Cohort, data = dsti_sample)
+Educational =  survfit(Surv(Waiting_Time, Have.you.found.an.internship.) ~ Education..background..pick.a.main.one.you.identify.with., data = dsti_sample)
+
+Educational
+summary(Educational)
+
+```
+```{r}
+#Predictive model
+mod = lm(Waiting_Time ~ ., data=dsti_sample)
+
+summary(mod)
+
+```
+
